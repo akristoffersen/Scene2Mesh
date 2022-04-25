@@ -130,10 +130,21 @@ def numpy_to_ply(vertices, faces, vert_colors=None, filename=None):
         PlyData obj
     '''
     assert vertices.shape[1] == 3 and faces.shape[1] == 3
-    vertices = np.array(
-        [tuple(vertices[i]) for i in range(vertices.shape[0])],
-        dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4')],
-    )
+
+    if vert_colors is None:
+        vertices = np.array(
+            [tuple(vertices[i]) for i in range(vertices.shape[0])],
+            dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4')],
+        )
+    else:
+        vertices = np.array(
+            [(*vertices[i], vert_colors[i, 0], vert_colors[i, 1], vert_colors[i, 2])  
+              for i in range(vertices.shape[0])],
+            dtype=[
+                ('x', 'f4'), ('y', 'f4'), ('z', 'f4'), 
+                ("red", "u1"), ("green", "u1"), ("blue", "u1"),
+            ],
+        )
     faces = np.array(
         [tuple([faces[i]]) for i in range(faces.shape[0])],
         dtype=[('vertex_indices', 'i4', (3,))],
@@ -155,6 +166,7 @@ def numpy_to_ply(vertices, faces, vert_colors=None, filename=None):
         ply_data.write(filename)
     
     return ply_data
+
 
 # import neural_renderer as nr
 
