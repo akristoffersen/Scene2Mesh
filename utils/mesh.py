@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
+import plyfile
 
 # import bpy
 
@@ -39,8 +40,8 @@ def triangle_direction_intersection(tri, trg):
     '''
     p0 = np.copy(tri[0, :])
     # Don't normalize
-    d1 = np.copy(tri[1, :]) - p0;
-    d2 = np.copy(tri[2, :]) - p0;
+    d1 = np.copy(tri[1, :]) - p0
+    d2 = np.copy(tri[2, :]) - p0
     d = trg / np.linalg.norm(trg)
 
     mat = np.stack([d1, d2, d], axis=1)
@@ -93,7 +94,7 @@ def load_obj(filename_obj, normalization=True, texture_size=4, load_texture=Fals
                 v2 = int(vs[i + 2].split('/')[0])
                 faces.append((v0, v1, v2))
     faces = torch.from_numpy(np.vstack(faces).astype(np.int32)).cuda() - 1
-        
+
     # load textures
     # textures = None
     # if load_texture:
@@ -115,6 +116,45 @@ def load_obj(filename_obj, normalization=True, texture_size=4, load_texture=Fals
 
     return vertices, faces # , textures
 
+
+def numpy_to_ply(vertices, faces, vert_colors=None, filename=None):
+    '''
+    Converts numpy arrays to PLY file, which can be used
+    in blender or converted into an obj file.
+    Args:
+        # vertices: (|V|, 3), <x,y,z>
+        # faces: (|F|, 3), vertex indices, 3 for each triangle
+        # vert_colors (optional): (|V|, 3) RGB, [0, 1] range
+        # filename: string. if not None, write to given filepath.
+    Returns:
+        PlyData obj
+    '''
+    assert vertices.shape[1] == 3 and faces.shape[1] == 3
+    vertices = np.array(
+        [tuple(vertices[i]) for i in range(vertices.shape[0])],
+        dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4')],
+    )
+    faces = np.array(
+        [tuple([faces[i]]) for i in range(faces.shape[0])],
+        dtype=[('vertex_indices', 'i4', (3,))],
+    )
+    ply_data = plyfile.PlyData(
+        [
+            plyfile.PlyElement.describe(
+                vertices, 
+                'vertex',
+                comments=['model vertices'],
+            ),
+            plyfile.PlyElement.describe(
+                faces,
+                'face',
+            ),
+        ],
+    )
+    if filename:
+        ply_data.write(filename)
+    
+    return ply_data
 
 # import neural_renderer as nr
 
