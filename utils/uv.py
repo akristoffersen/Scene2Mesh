@@ -64,7 +64,7 @@ def create_spherical_uv_sampling(im_shape):
         uv sampling map (H, W)
     '''
     H, W = im_shape
-    phi_thetas = get_uv(H, W).numpy() * [np.pi, 2 * np.pi] # phi, theta
+    phis_thetas = get_uv(H, W).numpy() * [np.pi, 2 * np.pi] # phi, theta
     uv_directions = np.column_stack(
         [
             np.sin(phis_thetas[:, 0]) * np.cos(phis_thetas[:, 1]),
@@ -73,3 +73,17 @@ def create_spherical_uv_sampling(im_shape):
         ],
     )
     return uv_directions
+
+def get_spherical_coords(X):
+    # X is N x 3
+    rad = np.linalg.norm(X, axis=1)
+    # Inclination
+    theta = np.arccos(X[:, 2] / rad)
+    # Azimuth
+    phi = np.arctan2(X[:, 1], X[:, 0])
+
+    # Normalize both to be between [-1, 1]
+    vv = (theta / np.pi) * 2 - 1
+    uu = ((phi + np.pi) / (2*np.pi)) * 2 - 1
+    # Return N x 2
+    return np.stack([uu, vv],1)
