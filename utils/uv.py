@@ -12,7 +12,7 @@ def spherical_sample_fn(x):
     Returns:
         col: (N, 3), [0, 1] rgb
     '''
-    x = x / np.linalg.norm(x)
+    x = 0.5 + 0.5 * x
     return x
 
 
@@ -127,7 +127,9 @@ def bary_to_xyz(barys, verts):
         xyzs: [N, 3]
     '''
     N = barys.shape[0]
-    xyzs = verts[0] * barys[:, 0] + verts[1] * barys[:, 1] + verts[2] * barys[:, 2]
+    xyzs = (verts[0][:, None] * barys[:, 0]).T
+    xyzs += (verts[1][:, None] * barys[:, 1]).T
+    xyzs += (verts[2][:, None] * barys[:, 2]).T
     return xyzs
 
 
@@ -146,7 +148,7 @@ def draw_texture_map(H, W, vertices, uv_map, sample_fn=spherical_sample_fn, sub_
     '''
     V = vertices.shape[0]
     sqrt_sub = int(np.sqrt(sub_sample))
-    buffer = np.zeros(H * sqrt_sub, W * sqrt_sub, 3)
+    buffer = np.zeros((H * sqrt_sub, W * sqrt_sub, 3))
 
     pixel_offset = 1 / sqrt_sub
     for i in range(len(uv_map)):
@@ -170,12 +172,12 @@ def draw_texture_map(H, W, vertices, uv_map, sample_fn=spherical_sample_fn, sub_
         # these uv min/max correspond to locations in the buffer
 
         buffer_h_min = int(np.floor(u_min * buffer.shape[0]))
-        buffer_h_max = max(
+        buffer_h_max = min(
             int(np.ceil(u_max * buffer.shape[0])),
             buffer.shape[0] - 1,
         )
         buffer_w_min = int(np.floor(v_min * buffer.shape[1]))
-        buffer_w_max = max(
+        buffer_w_max = min(
             int(np.ceil(v_max * buffer.shape[1])),
             buffer.shape[1] - 1,
         )
@@ -186,20 +188,26 @@ def draw_texture_map(H, W, vertices, uv_map, sample_fn=spherical_sample_fn, sub_
         )
         buffer_hh, buffer_ww = buffer_locs
 
-        # convert these to positions in uv space
-        buffer_hh += 0.5 # get in the middle of each sub pixel
-        buffer_ww += 0.5
 
-        uus = buffer_hh / buffer.shape[0]
-        vvs = buffer_ww / buffer.shape[1]
+        # convert these to positions in uv space
+        uus = buffer_hh / buffer.shape[0] + 1.0 / (2 * buffer.shape[0])
+        vvs = buffer_ww / buffer.shape[1] + 1.0 / (2 * buffer.shape[1])
 
         uv_positions = np.dstack([uus.ravel(), vvs.ravel()])[0]
 
-        # mask for which pixels are inside the triangle
+        barycentrics = uv_to_barycentric(uv_locs, uv_positions)
 
-        # from that, call sample_fn on them
+        mask = np.all(barycentrics >= 0.0, axis= 1) * np.all(barycentrics <= 1.0, axis= 1)
+        ma_box = mask.reshape((buffer_h_max - buffer_h_min, buffer_w_max - buffer_w_min))
 
-        # write to buffer
+        # calculate xyzs of each texel
+        xyzs = bary_to_xyz(barycentrics[mask], v_positions)
+
+        # sample rgbs
+        rgbs = sample_fn(xyzs)
+        
+        # write to the buffer
+        buffer[buffer_h_min: buffer_h_max, buffer_w_min: buffer_w_max][ma_box] = rgbs
     
-    # average buffer (don't know how to do this yet)
+    # TODO: average buffer (don't know how to do this yet)
     return buffer
