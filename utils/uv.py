@@ -130,3 +130,76 @@ def bary_to_xyz(barys, verts):
     xyzs = verts[0] * barys[:, 0] + verts[1] * barys[:, 1] + verts[2] * barys[:, 2]
     return xyzs
 
+
+def draw_texture_map(H, W, vertices, uv_map, sample_fn=spherical_sample_fn, sub_sample=4):
+    '''
+        Creates texture map from vertex positions and uv_map.
+    Args:
+        H: int
+        W: int
+        vertices: np.array, [|V|, 3]
+        uv_map: dict, see format from blender script
+        sample_fn: fn that takes in [..., 3], outputs rgbs
+        sub_sample: int, increase to decrease aliasing
+    Returns:
+        result: [H, W, 3]
+    '''
+    V = vertices.shape[0]
+    sqrt_sub = int(np.sqrt(sub_sample))
+    buffer = np.zeros(H * sqrt_sub, W * sqrt_sub, 3)
+
+    pixel_offset = 1 / sqrt_sub
+    for i in range(len(uv_map)):
+        loop = uv_map[i]
+        vertex_ids = list(loop.keys())
+
+        v_positions = np.stack(
+            [vertices[vertex_ids[i]] for i in range(3)]
+        ) # (3, 3)
+
+        uv_locs = np.stack(
+            [loop[vertex_ids[i]] for i in range(3)]
+        ) # (3, 2)
+
+        u_min = np.min(uv_locs[:, 0])
+        u_max = np.max(uv_locs[:, 0])
+
+        v_min = np.min(uv_locs[:, 1])
+        v_max = np.max(uv_locs[:, 1])
+
+        # these uv min/max correspond to locations in the buffer
+
+        buffer_h_min = int(np.floor(u_min * buffer.shape[0]))
+        buffer_h_max = max(
+            int(np.ceil(u_max * buffer.shape[0])),
+            buffer.shape[0] - 1,
+        )
+        buffer_w_min = int(np.floor(v_min * buffer.shape[1]))
+        buffer_w_max = max(
+            int(np.ceil(v_max * buffer.shape[1])),
+            buffer.shape[1] - 1,
+        )
+
+        buffer_locs = np.meshgrid(
+            range(buffer_h_min, buffer_h_max),
+            range(buffer_w_min, buffer_w_max),
+        )
+        buffer_hh, buffer_ww = buffer_locs
+
+        # convert these to positions in uv space
+        buffer_hh += 0.5 # get in the middle of each sub pixel
+        buffer_ww += 0.5
+
+        uus = buffer_hh / buffer.shape[0]
+        vvs = buffer_ww / buffer.shape[1]
+
+        uv_positions = np.dstack([uus.ravel(), vvs.ravel()])[0]
+
+        # mask for which pixels are inside the triangle
+
+        # from that, call sample_fn on them
+
+        # write to buffer
+    
+    # average buffer (don't know how to do this yet)
+    return buffer
