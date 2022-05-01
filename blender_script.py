@@ -2,13 +2,13 @@ import bpy
 from io_mesh_ply import import_ply
 import numpy as np
 
-base_dir = "/Users/alexkristoffersen/Downloads"
+base_dir = "/Users/alexkristoffersen/Desktop/cs184/final_project/Scene2Mesh"
 
-import_ply.load_ply(base_dir + "/" + "bpa_mesh.ply")
+import_ply.load_ply(base_dir + "/" + "test.ply")
 
 bpy.ops.object.select_all(action='DESELECT')
 
-bpy.data.objects["bpa_mesh"].select_set(True)
+bpy.data.objects["test"].select_set(True)
 
 # Get all objects in selection
 selection = bpy.context.selected_objects
@@ -43,7 +43,7 @@ for obj in selection:
 # Restore the active object
 bpy.context.view_layer.objects.active = active_object
 
-obj = bpy.data.objects["bpa_mesh"]
+obj = bpy.data.objects["test"]
 me = obj.to_mesh()
 uv_layer = me.uv_layers.active.data
 
@@ -60,4 +60,4 @@ for poly in me.polygons:
     
     uv_dict[poly.index] = loop_vals
 
-np.save(base_dir + "/" + "bpa_uv_map.npy", uv_dict)
+np.save(base_dir + "/" + "test_uv_map.npy", uv_dict)

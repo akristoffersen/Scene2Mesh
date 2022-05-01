@@ -87,3 +87,46 @@ def get_spherical_coords(X):
     uu = ((phi + np.pi) / (2*np.pi)) * 2 - 1
     # Return N x 2
     return np.stack([uu, vv],1)
+
+
+def calculate_interpolation(v_0, v_1, v_2, points):
+    delta = v_1 - v_0
+
+    point_l = -1 * (v_2[0] - v_0[0]) * delta[1] + (v_2[1] - v_0[1]) * delta[0]
+    eval_l = -1 * (points[:, 0] - v_0[0]) * delta[1] + (points[:, 1] - v_0[1]) * delta[0]
+
+    return eval_l / point_l
+
+
+def uv_to_barycentric(vertices, points):
+    '''
+    Args:
+        vertices: [3, 2]
+        points: [N, 2]
+    Returns:
+        bary coords: [N, 3]
+    '''
+    N = points.shape[0]
+    abcs = np.zeros((N, 3))
+
+    v_0, v_1, v_2 = vertices
+
+    abcs[:, 0] = calculate_interpolation(v_0, v_1, v_2, points)
+    abcs[:, 1] = calculate_interpolation(v_1, v_2, v_0, points)
+    abcs[:, 2] = calculate_interpolation(v_2, v_0, v_1, points)
+
+    return abcs
+
+
+def bary_to_xyz(barys, verts):
+    '''
+    Args:
+        barys: [N, 3]
+        verts: [3, 3]
+    Returns:
+        xyzs: [N, 3]
+    '''
+    N = barys.shape[0]
+    xyzs = verts[0] * barys[:, 0] + verts[1] * barys[:, 1] + verts[2] * barys[:, 2]
+    return xyzs
+
