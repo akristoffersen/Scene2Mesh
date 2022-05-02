@@ -30,7 +30,8 @@ for obj in selection:
     # Select the geometry
     bpy.ops.mesh.select_all(action='SELECT')
     # Call the smart project operator
-    bpy.ops.uv.smart_project()
+    bpy.ops.uv.lightmap_pack()
+
     # Toggle out of Edit Mode
     bpy.ops.object.mode_set(mode='OBJECT')
     # Deselect the object
