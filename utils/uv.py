@@ -151,18 +151,18 @@ def draw_texture_map(H, W, vertices, uv_map, sample_fn=spherical_sample_fn, sub_
     buffer = np.zeros((H * sqrt_sub, W * sqrt_sub, 3))
 
     pixel_offset = 1 / sqrt_sub
-    for i in range(len(uv_map)):
+    for i in range(len(uv_map)): # len(uv_map)
+        print(i)
         loop = uv_map[i]
         vertex_ids = list(loop.keys())
-
+        
         v_positions = np.stack(
             [vertices[vertex_ids[i]] for i in range(3)]
         ) # (3, 3)
-
         uv_locs = np.stack(
             [loop[vertex_ids[i]] for i in range(3)]
         ) # (3, 2)
-
+        # print(uv_locs)
         u_min = np.min(uv_locs[:, 0])
         u_max = np.max(uv_locs[:, 0])
 
@@ -185,6 +185,7 @@ def draw_texture_map(H, W, vertices, uv_map, sample_fn=spherical_sample_fn, sub_
         buffer_locs = np.meshgrid(
             range(buffer_h_min, buffer_h_max),
             range(buffer_w_min, buffer_w_max),
+            indexing='ij',
         )
         buffer_hh, buffer_ww = buffer_locs
 
@@ -194,20 +195,25 @@ def draw_texture_map(H, W, vertices, uv_map, sample_fn=spherical_sample_fn, sub_
         vvs = buffer_ww / buffer.shape[1] + 1.0 / (2 * buffer.shape[1])
 
         uv_positions = np.dstack([uus.ravel(), vvs.ravel()])[0]
-
         barycentrics = uv_to_barycentric(uv_locs, uv_positions)
-
+        # return buffer_locs
         mask = np.all(barycentrics >= 0.0, axis= 1) * np.all(barycentrics <= 1.0, axis= 1)
+        mask *= np.isclose(np.sum(barycentrics, axis=1), 1.0)
         ma_box = mask.reshape((buffer_h_max - buffer_h_min, buffer_w_max - buffer_w_min))
-
+        # return ma_box
         # calculate xyzs of each texel
         xyzs = bary_to_xyz(barycentrics[mask], v_positions)
-
+        
         # sample rgbs
         rgbs = sample_fn(xyzs)
+        # buffer_temp = np.zeros(
+        #     (buffer_h_max - buffer_h_min, buffer_w_max - buffer_w_min, 3),
+        # )
+        # buffer_temp[ma_box] = rgbs
         
         # write to the buffer
         buffer[buffer_h_min: buffer_h_max, buffer_w_min: buffer_w_max][ma_box] = rgbs
     
     # TODO: average buffer (don't know how to do this yet)
+    buffer = np.flip(buffer, axis=0)
     return buffer
