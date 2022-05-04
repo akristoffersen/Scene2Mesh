@@ -274,11 +274,11 @@ def main():
     print('Done.')
 
     rng = random.PRNGKey(2020082)
-    volume_grid = npc.generate_uniform_volume(-1.2, 1.2, FLAGS.grid_samples)
-    density, rgb = npc.sample_volume_grid(volume_grid, render_fn, state, rng)
+    volume_grid = generate_uniform_volume(-1.2, 1.2, FLAGS.grid_samples)
+    density, rgb = sample_volume_grid(volume_grid, render_fn, state, rng)
 
-    pc_xyz, pc_rgb = npc.generate_point_cloud(density, rgb, isovalue=50)
-    npc.serialize_point_cloud(FLAGS.pc_out_path, pc_xyz, pc_rgb)
+    pc_xyz, pc_rgb = generate_point_cloud(density, rgb, isovalue=50)
+    serialize_point_cloud(FLAGS.pc_out_path, pc_xyz, pc_rgb)
     print(f'Wrote point cloud to {FLAGS.pc_out_path}')
 
 
