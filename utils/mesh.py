@@ -3,7 +3,8 @@ import torch.nn as nn
 import numpy as np
 import plyfile
 
-# import bpy
+import open3d
+import blenderpy as bpy
 
 
 def mesh_centroid(vertices, faces):
@@ -78,7 +79,7 @@ def load_obj(filename_obj, normalization=True, texture_size=4, load_texture=Fals
             continue
         if line.split()[0] == 'v':
             vertices.append([float(v) for v in line.split()[1:4]])
-    vertices = torch.from_numpy(np.vstack(vertices).astype(np.float32)).cuda()
+    vertices = torch.from_numpy(np.vstack(vertices).astype(np.float32))# .cuda()
 
     # load faces
     faces = []
@@ -93,7 +94,7 @@ def load_obj(filename_obj, normalization=True, texture_size=4, load_texture=Fals
                 v1 = int(vs[i + 1].split('/')[0])
                 v2 = int(vs[i + 2].split('/')[0])
                 faces.append((v0, v1, v2))
-    faces = torch.from_numpy(np.vstack(faces).astype(np.int32)).cuda() - 1
+    faces = torch.from_numpy(np.vstack(faces).astype(np.int32)) - 1# .cuda() - 1
 
     # load textures
     # textures = None
@@ -122,10 +123,10 @@ def numpy_to_ply(vertices, faces, vert_colors=None, filename=None):
     Converts numpy arrays to PLY file, which can be used
     in blender or converted into an obj file.
     Args:
-        # vertices: (|V|, 3), <x,y,z>
-        # faces: (|F|, 3), vertex indices, 3 for each triangle
-        # vert_colors (optional): (|V|, 3) RGB, [0, 1] range
-        # filename: string. if not None, write to given filepath.
+        vertices: (|V|, 3), <x,y,z>
+        faces: (|F|, 3), vertex indices, 3 for each triangle
+        vert_colors (optional): (|V|, 3) RGB, [0, 1] range
+        filename: string. if not None, write to given filepath.
     Returns:
         PlyData obj
     '''
@@ -166,6 +167,19 @@ def numpy_to_ply(vertices, faces, vert_colors=None, filename=None):
         ply_data.write(filename)
     
     return ply_data
+
+def extract_cols(txt_file, V):
+    cols = np.zeros((V, 3))
+    with open(txt_file) as f:
+        lines = f.readlines()
+    print(len(lines))
+    
+    for i, line in enumerate(lines[1:]):
+        line_out = np.array([float(k) for k in line.split()])
+        rgb = line_out[-3:]
+        cols[i] = rgb
+    
+    return cols
 
 
 # import neural_renderer as nr
