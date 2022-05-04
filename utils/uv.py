@@ -220,4 +220,8 @@ def draw_texture_map(H, W, vertices, uv_map, sample_fn=spherical_sample_fn, sub_
     
     # TODO: average buffer (don't know how to do this yet)
     # buffer = np.flip(buffer, axis=0)
-    return buffer
+    final_size = buffer.shape[0] // sqrt_sub
+    sub_sampled_tex_im = buffer.reshape(
+        (final_size, sqrt_sub, final_size, sqrt_sub, 3),
+    ).mean(3).mean(1)
+    return sub_sampled_tex_im
