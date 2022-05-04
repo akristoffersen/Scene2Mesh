@@ -86,4 +86,4 @@ for poly in me.polygons:
 np.save(base_dir + "/" + filename_base + "_uv_map.npy", uv_dict)
 
 # save main file to recover uv map.
-bpy.ops.wm.save_as_mainfile(base_dir + "/" + filename_base + ".blend")
+bpy.ops.wm.save_as_mainfile(filepath = base_dir + "/" + filename_base + ".blend")
