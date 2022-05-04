@@ -111,9 +111,9 @@ def uv_to_barycentric(vertices, points):
 
     v_0, v_1, v_2 = vertices
 
-    abcs[:, 0] = calculate_interpolation(v_0, v_1, v_2, points)
-    abcs[:, 1] = calculate_interpolation(v_1, v_2, v_0, points)
-    abcs[:, 2] = calculate_interpolation(v_2, v_0, v_1, points)
+    abcs[:, 2] = calculate_interpolation(v_0, v_1, v_2, points)
+    abcs[:, 0] = calculate_interpolation(v_1, v_2, v_0, points)
+    abcs[:, 1] = calculate_interpolation(v_2, v_0, v_1, points)
 
     return abcs
 
@@ -154,15 +154,19 @@ def draw_texture_map(H, W, vertices, uv_map, sample_fn=spherical_sample_fn, sub_
     for i in range(len(uv_map)): # len(uv_map)
         print(i)
         loop = uv_map[i]
-        vertex_ids = list(loop.keys())
+        vertex_ids = (list(loop.keys()))
         
         v_positions = np.stack(
             [vertices[vertex_ids[i]] for i in range(3)]
         ) # (3, 3)
+        # print("v_positions:", v_positions)
         uv_locs = np.stack(
             [loop[vertex_ids[i]] for i in range(3)]
-        ) # (3, 2)
-        # print(uv_locs)
+        )
+        uv_locs[:, [0, 1]] = uv_locs[:, [1, 0]] # swap
+        uv_locs[:, 0] = 1 - uv_locs[:, 0]
+        # print("uv_locs:", uv_locs)
+         # (3, 2)
         u_min = np.min(uv_locs[:, 0])
         u_max = np.max(uv_locs[:, 0])
 
@@ -193,7 +197,6 @@ def draw_texture_map(H, W, vertices, uv_map, sample_fn=spherical_sample_fn, sub_
         # convert these to positions in uv space
         uus = buffer_hh / buffer.shape[0] + 1.0 / (2 * buffer.shape[0])
         vvs = buffer_ww / buffer.shape[1] + 1.0 / (2 * buffer.shape[1])
-
         uv_positions = np.dstack([uus.ravel(), vvs.ravel()])[0]
         barycentrics = uv_to_barycentric(uv_locs, uv_positions)
         # return buffer_locs
@@ -210,10 +213,11 @@ def draw_texture_map(H, W, vertices, uv_map, sample_fn=spherical_sample_fn, sub_
         #     (buffer_h_max - buffer_h_min, buffer_w_max - buffer_w_min, 3),
         # )
         # buffer_temp[ma_box] = rgbs
+        # return buffer_temp
         
         # write to the buffer
         buffer[buffer_h_min: buffer_h_max, buffer_w_min: buffer_w_max][ma_box] = rgbs
     
     # TODO: average buffer (don't know how to do this yet)
-    buffer = np.flip(buffer, axis=0)
+    # buffer = np.flip(buffer, axis=0)
     return buffer
