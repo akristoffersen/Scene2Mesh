@@ -152,7 +152,7 @@ def draw_texture_map(H, W, vertices, uv_map, sample_fn=spherical_sample_fn, sub_
 
     pixel_offset = 1 / sqrt_sub
     for i in range(len(uv_map)): # len(uv_map)
-        print(i)
+        # print(i)
         loop = uv_map[i]
         vertex_ids = (list(loop.keys()))
         
