@@ -168,7 +168,9 @@ class Dataset(threading.Thread):
       return {"rays": utils.namedtuple_map(lambda r: r[idx], self.render_rays)}
     else:
       return {
+          "c2w": self.camtoworlds[idx],
           "pixels": self.images[idx],
+          "focal": self.focal,
           "rays": utils.namedtuple_map(lambda r: r[idx], self.rays)
       }
 
@@ -207,8 +209,8 @@ class Blender(Dataset):
     cams = []
     for i in range(len(meta["frames"])):
       frame = meta["frames"][i]
-      #fname = os.path.join(args.data_dir, frame["file_path"] + ".png")
-      fname = os.path.join(args.data_dir, frame["file_path"][2:])
+      fname = os.path.join(args.data_dir, frame["file_path"] + ".png")
+      # fname = os.path.join(args.data_dir, frame["file_path"][2:])
       with utils.open_file(fname, "rb") as imgin:
         image = np.array(Image.open(imgin), dtype=np.float32) / 255.
         if args.factor == 2:

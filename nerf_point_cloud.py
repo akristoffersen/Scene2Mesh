@@ -27,11 +27,18 @@ class FLAGS:
     config = 'configs/blender'
     grid_samples = 256
     pc_out_path = '/tmp/point_cloud.txt'
+    white_bkgd = True
+
+    # train_dir = '/home/ubuntu/models/real/coke'
+    # data_dir = '/home/ubuntu/data/nerf_real/coke'
+    # config = 'configs/blender'
+    # grid_samples = 256
+    # pc_out_path = '/tmp/point_cloud.txt'
+    # white_bkgd = False
 
     # Default JaxNeRF parameters (probably best to avoid)
     dataset = 'blender'
     batching = 'single_image'
-    white_bkgd = True
     batch_size = 1024
     factor = 2
     spherify = False
@@ -142,6 +149,138 @@ def fast_marching_cubes(volume_density, threshold=50.):
 def normalize(x):
     """Normalize tensor output range to [0, 1]."""
     return (x - x.min()) / (x.max() - x.min())
+
+
+def compute_ray_density(world_xyz, camera_origin, render_fn, model_state, rng):
+    """Compute density along ray from camera origin to point in world space.
+
+    Args:
+        world_xyz: (N, 3) array of 3D points in world space.
+        camera_origin: (3,) point representing camera origin in world space.
+        render_fn: jitted JaxNeRF render function.
+        model_state: pre-trained NeRF model parameters.
+        rng: jax pseudorandom number generator.
+
+    Returns:
+        (N, num_samples) array with density along ray for each point.
+    """
+    camera_o = camera_origin
+
+    # TODO: ensure ray terminates at world_xyz coordinate
+    # In it's current state, I'm not sure this is actually the case which
+    # may affect occlusion estimates.
+    # We might be able to patch this in JaxNeRF directly.
+    directions = world_xyz - camera_o
+    dir_depth = np.linalg.norm(directions, axis=-1, keepdims=True)
+
+    normalizer = (dir_depth - FLAGS.near)
+    directions = directions / normalizer
+
+    n = world_xyz.shape[0]
+    origins = np.repeat(camera_o[None, :], n, axis=0)
+
+    rays = utils.Rays(origins=origins[None, :, :], directions=directions[None, :, :], viewdirs=directions[None, :, :])
+
+    _, _, _, sigma, _ = utils.render_image(
+        functools.partial(render_fn, model_state.optimizer.target),
+        rays,
+        rng,
+        FLAGS.dataset == "llff",
+        chunk=FLAGS.chunk)
+    return sigma[0]
+
+
+def project_world_coords(world_xyz, c2w, focal, W, H):
+    """Project world coordinates into camera space.
+
+    Args:
+        world_xyz: (N, 3) array of 3D points in world space.
+        c2w: (4, 4) camera-to-world pose transformation matrix.
+        focal: focal length.
+        W: image width.
+        H: image height.
+
+    Returns:
+        (N, 2) array of 2D points projected into 2D camera image space.
+    """
+    K = np.array([[focal, 0, W/2],
+                  [0, focal, H/2],
+                  [0, 0, 1]]).astype(np.float32)
+
+    homo_verts = np.concatenate([world_xyz,
+                                 np.ones((world_xyz.shape[0],1))
+                                ], axis=-1)  # (N, 4)
+    w2c = np.linalg.inv(c2w)[:3]
+
+    verts_cam = w2c @ homo_verts.T # (3, N)
+    verts_cam[1:] *= -1
+    verts_im = (K @ verts_cam).T
+    depth = verts_im[:, -1:] + 1e-5
+    verts_im = verts_im[:, :2] / depth
+    verts_im = verts_im.astype(np.float32)
+    verts_im[:, 0] = np.clip(verts_im[:, 0], 0, W - 1)
+    verts_im[:, 1] = np.clip(verts_im[:, 1], 0, H - 1)
+    return verts_im
+
+
+def rgb_vertex_proj(dataset,
+                    world_point_cloud_xyz,
+                    render_fn,
+                    model_state,
+                    rng,
+                    sigma_threshold=0.2):
+    """Vertex projection method for coloring mesh from ground truth images.
+
+    Args:
+        dataset: JaxNeRF dataset object.
+        world_point_cloud_xyz: (N, 3) point cloud array in world space.
+        render_fn: jitted JaxNeRF render function.
+        model_state: pre-trained NeRF model parameters.
+        rng: jax pseudorandom number generator.
+        sigma_threshold: Density threshold for determining occlusion along ray.
+
+    Returns:
+        total_colors: (N, 3) array representing final color for each point.
+        total_counts: (N,) array representing visible sample count per point.
+    """
+    total_colors = np.zeros_like(world_point_cloud_xyz)  # (N, 3)
+    total_counts = np.zeros((world_point_cloud_xyz.shape[0],))  # (N,)
+    num_images = dataset.size
+    for i in tqdm(range(num_images)):
+        batch = next(dataset)  # A batch is actually a single image.
+        assert set(['rays', 'c2w', 'focal', 'pixels']) == set(batch.keys())
+
+        camera_origin = batch['rays'].origins[0, 0]  # (3,)
+        H, W = batch['pixels'].shape[:2]
+
+        ray_density = compute_ray_density(world_point_cloud_xyz,
+                                          camera_origin,
+                                          render_fn,
+                                          model_state,
+                                          rng)
+        verts_im = project_world_coords(world_point_cloud_xyz,
+                                        batch['c2w'],
+                                        batch['focal'],
+                                        W, H)
+
+        # Determine occlusions along rays
+        visible_idx = (ray_density.sum(axis=-1) < sigma_threshold)
+        total_counts[visible_idx] += 1
+
+        # TODO: Implement bilinear interpolation for color computation
+        # Nearest neighbor color selection
+        visible_points = verts_im[visible_idx]
+        x, y = visible_points[:, 0], visible_points[:, 1]
+        qx, qy = np.floor(x).astype(np.uint32), np.floor(y).astype(np.uint32)
+        colors = np.zeros_like(world_point_cloud_xyz)  # (N, 3)
+
+        colors[visible_idx] = batch['pixels'][qy, qx]
+        total_colors += colors
+
+    # Average colors
+    nonzero_idx = np.where(total_counts > 0)
+    total_colors[nonzero_idx] = total_colors[nonzero_idx] / total_counts[nonzero_idx][:, None]
+    return total_colors, total_counts
 
 
 def generate_uniform_volume(low, high, axis_samples):
