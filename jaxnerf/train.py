@@ -64,13 +64,14 @@ def train_step(model, rng, state, batch, lr):
           "ret should contain either 1 set of output (coarse only), or 2 sets"
           "of output (coarse as ret[0] and fine as ret[1]).")
     # The main prediction is always at the end of the ret list.
-    rgb, unused_disp, unused_acc = ret[-1]
+    #rgb, unused_disp, unused_acc = ret[-1]
+    rgb, unused_disp, unused_acc, unused_sim = ret[-1]
     loss = ((rgb - batch["pixels"][Ellipsis, :3])**2).mean()
     psnr = utils.compute_psnr(loss)
     if len(ret) > 1:
       # If there are both coarse and fine predictions, we compute the loss for
       # the coarse prediction (ret[0]) as well.
-      rgb_c, unused_disp_c, unused_acc_c = ret[0]
+      rgb_c, unused_disp_c, unused_acc_c, unused_sim_c = ret[0]
       loss_c = ((rgb_c - batch["pixels"][Ellipsis, :3])**2).mean()
       psnr_c = utils.compute_psnr(loss_c)
     else:
@@ -235,7 +236,7 @@ def main(unused_argv):
       eval_variables = jax.device_get(jax.tree_map(lambda x: x[0],
                                                    state)).optimizer.target
       test_case = next(test_dataset)
-      pred_color, pred_disp, pred_acc = utils.render_image(
+      pred_color, pred_disp, pred_acc, pred_sim = utils.render_image(
           functools.partial(render_pfn, eval_variables),
           test_case["rays"],
           keys[0],
