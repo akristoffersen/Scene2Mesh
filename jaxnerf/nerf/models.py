@@ -81,6 +81,7 @@ class NerfModel(nn.Module):
         randomized,
         self.lindisp,
     )
+    # import pdb; pdb.set_trace()
     samples_enc = model_utils.posenc(
         samples,
         self.min_deg_point,
@@ -129,7 +130,7 @@ class NerfModel(nn.Module):
         white_bkgd=self.white_bkgd,
     )
     ret = [
-        (comp_rgb, disp, acc, sigma, rgb),
+        (comp_rgb, disp, acc, sigma),
     ]
     # Hierarchical sampling based on coarse predictions
     if self.num_fine_samples > 0:
@@ -183,7 +184,7 @@ class NerfModel(nn.Module):
           rays.directions,
           white_bkgd=self.white_bkgd,
       )
-      ret.append((comp_rgb, disp, acc, sigma, rgb))
+      ret.append((comp_rgb, disp, acc, sigma))
 
     return ret
 
