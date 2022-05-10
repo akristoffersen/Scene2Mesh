@@ -129,7 +129,10 @@ def sample_along_rays(key, origins, directions, num_samples, near, far,
     z_vals = jnp.broadcast_to(z_vals[None, Ellipsis], [batch_size, num_samples])
 
   coords = cast_rays(z_vals, origins, directions)
+  #point = jnp.array([0, 0, 0])
+  #points = jnp.broadcast_to(point, (batch_size, num_samples, 3))
   return z_vals, coords
+  #return z_vals, points
 
 
 def posenc(x, min_deg, max_deg, legacy_posenc_order=False):
