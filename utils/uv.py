@@ -95,7 +95,7 @@ def calculate_interpolation(v_0, v_1, v_2, points):
     point_l = -1 * (v_2[0] - v_0[0]) * delta[1] + (v_2[1] - v_0[1]) * delta[0]
     eval_l = -1 * (points[:, 0] - v_0[0]) * delta[1] + (points[:, 1] - v_0[1]) * delta[0]
 
-    return eval_l / point_l
+    return eval_l / (point_l)
 
 
 def uv_to_barycentric(vertices, points):
