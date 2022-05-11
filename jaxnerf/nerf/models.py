@@ -130,7 +130,7 @@ class NerfModel(nn.Module):
         white_bkgd=self.white_bkgd,
     )
     ret = [
-        (comp_rgb, disp, acc, sigma),
+        (comp_rgb, disp, acc, sigma, rgb),
     ]
     # Hierarchical sampling based on coarse predictions
     if self.num_fine_samples > 0:
@@ -184,7 +184,7 @@ class NerfModel(nn.Module):
           rays.directions,
           white_bkgd=self.white_bkgd,
       )
-      ret.append((comp_rgb, disp, acc, sigma))
+      ret.append((comp_rgb, disp, acc, sigma, rgb))
 
     return ret
 
